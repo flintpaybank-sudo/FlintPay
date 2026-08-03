@@ -2,9 +2,11 @@ import React from 'react'
 
 export default function App() {
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Bienvenue sur FlintPay !</h1>
-      <p>L'application est correctement déployée et connectée.</p>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1>FlintPay</h1>
+        <p>L'application est en ligne et opérationnelle !</p>
+      </div>
     </div>
   )
 }
