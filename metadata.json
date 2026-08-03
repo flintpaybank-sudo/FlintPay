@@ -1,0 +1,6 @@
+{
+  "name": "FlintPay",
+  "description": "Plateforme complète d'échange de devises USD/CDF, d'épargne rémunérée et d'administration pour FlintPay.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

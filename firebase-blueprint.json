@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Profil et compte utilisateur FlintPay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nom": { "type": "string", "maxLength": 100 },
+        "postnom": { "type": "string", "maxLength": 100 },
+        "sexe": { "type": "string", "enum": ["M", "F"] },
+        "dateNaissance": { "type": "string" },
+        "typePiece": {
+          "type": "string",
+          "enum": ["carte_electeur", "permis", "passeport", "carte_etudiant", "tenant_lieu", "cepgl"]
+        },
+        "photoPieceUrl": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "pays": { "type": "string" },
+        "telephone": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin", "manager"] },
+        "level": {
+          "type": "string",
+          "enum": ["adherant", "effectif", "fondateur", "honneur", "sympathisant"]
+        },
+        "kycStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "rejectionReason": { "type": "string" },
+        "balanceUSD": { "type": "number" },
+        "balanceCDF": { "type": "number" },
+        "savingsUSD": { "type": "number" },
+        "savingsCDF": { "type": "number" },
+        "savingsUSDDate": { "type": "string" },
+        "savingsCDFDate": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "parrainCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "referralsCount": { "type": "number" },
+        "activeReferralsCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "lastClickDate": { "type": "string" },
+        "totalInvestedUSD": { "type": "number" },
+        "totalInvestedCDF": { "type": "number" },
+        "lastSavingsPayoutDate": { "type": "string" }
+      },
+      "required": [
+        "nom",
+        "postnom",
+        "email",
+        "role",
+        "level",
+        "kycStatus",
+        "balanceUSD",
+        "balanceCDF",
+        "referralCode",
+        "createdAt"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Historique des opérations financières USD/CDF, dépôts, retraits et épargne",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "deposit",
+            "withdrawal",
+            "exchange_click",
+            "savings_deposit",
+            "savings_withdrawal",
+            "manual_exchange"
+          ]
+        },
+        "currency": { "type": "string", "enum": ["USD", "CDF"] },
+        "amount": { "type": "number" },
+        "feeAmount": { "type": "number" },
+        "netAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "paymentProofUrl": { "type": "string" },
+        "destinationAccount": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "completed"]
+        },
+        "rejectionReason": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "type",
+        "currency",
+        "amount",
+        "netAmount",
+        "status",
+        "createdAt"
+      ]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Communication ou info officielle diffusée sur FlintPay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "content": { "type": "string", "maxLength": 2000 },
+        "type": { "type": "string", "enum": ["info", "promo", "warning", "maintenance"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "content", "type", "isActive", "createdAt"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Taux de change et configurations administratives de l'application",
+      "type": "object",
+      "properties": {
+        "usdToCdfRate": { "type": "number" },
+        "binanceWalletUSD": { "type": "string" },
+        "mobileMoneyNumber": { "type": "string" },
+        "clickGainRate": { "type": "number" },
+        "withdrawalFeeRate": { "type": "number" },
+        "savingsInterestRate": { "type": "number" },
+        "savingsLockMonths": { "type": "number" },
+        "savingsEarlyPenalty": { "type": "number" },
+        "supportWhatsApp": { "type": "string" },
+        "supportTelegram": { "type": "string" },
+        "supportWhatsAppGroup": { "type": "string" },
+        "supportTelegramGroup": { "type": "string" }
+      },
+      "required": [
+        "usdToCdfRate",
+        "clickGainRate",
+        "withdrawalFeeRate",
+        "savingsInterestRate"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Comptes utilisateurs et soldes de portefeuille"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Journal de toutes les transactions financières"
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Annonces globales du système"
+    },
+    "/settings/global": {
+      "schema": { "$ref": "#/entities/SystemSettings" },
+      "description": "Paramètres de taux de change et wallets système"
+    }
+  }
+}
