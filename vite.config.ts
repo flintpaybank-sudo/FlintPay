@@ -14,6 +14,9 @@ export default defineConfig(() => {
     build: {
       chunkSizeWarningLimit: 2000,
     },
+    preview: {
+      allowedHosts: ['flintpay-3c1d.onrender.com', '.onrender.com'],
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
