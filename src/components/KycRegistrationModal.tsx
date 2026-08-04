@@ -71,7 +71,7 @@ export const KycRegistrationModal: React.FC<KycRegistrationModalProps> = ({ isOp
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -92,25 +92,53 @@ export const KycRegistrationModal: React.FC<KycRegistrationModalProps> = ({ isOp
       return;
     }
 
-    const success = registerKYC({
-      nom: formData.nom,
-      postnom: formData.postnom,
-      sexe: formData.sexe,
-      dateNaissance: formData.dateNaissance || '1995-01-01',
-      typePiece: formData.typePiece,
-      photoPieceUrl: uploadedPreview || formData.photoPieceUrl,
-      email: formData.email,
-      pays: formData.pays,
-      telephone: formData.telephone,
-      password: formData.password,
-      parrainCode: formData.parrainCode || null,
-    });
+    try {
+      // 1. Envoi des données de l'utilisateur vers votre backend/Neon
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nom: formData.nom,
+          postnom: formData.postnom,
+          sexe: formData.sexe,
+          dateNaissance: formData.dateNaissance || '1995-01-01',
+          typePiece: formData.typePiece,
+          photoPieceUrl: uploadedPreview || formData.photoPieceUrl,
+          email: formData.email,
+          pays: formData.pays,
+          telephone: formData.telephone,
+          password: formData.password,
+          parrainCode: formData.parrainCode || null,
+        }),
+      });
 
-    if (success) {
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'enregistrement du compte sur le serveur.");
+      }
+
+      // 2. Mettre à jour l'état local dans l'application
+      registerKYC({
+        nom: formData.nom,
+        postnom: formData.postnom,
+        sexe: formData.sexe,
+        dateNaissance: formData.dateNaissance || '1995-01-01',
+        typePiece: formData.typePiece,
+        photoPieceUrl: uploadedPreview || formData.photoPieceUrl,
+        email: formData.email,
+        pays: formData.pays,
+        telephone: formData.telephone,
+        password: formData.password,
+        parrainCode: formData.parrainCode || null,
+      });
+
       onClose();
+    } catch (err: any) {
+      console.error('Erreur inscription:', err);
+      setError(err.message || "Impossible d'enregistrer le compte sur le serveur.");
     }
   };
-
   const documentTypes: { id: DocumentType; label: string }[] = [
     { id: 'carte_electeur', label: 'Carte d\'électeur' },
     { id: 'permis', label: 'Permis de conduire' },
