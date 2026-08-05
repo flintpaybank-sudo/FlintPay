@@ -64,7 +64,12 @@ export const AdminBackofficeView: React.FC = () => {
     addToast
   } = useApp();
 
-  const [adminTab, setAdminTab] = useState<'kyc' | 'deposits' | 'withdrawals' | 'users' | 'settings' | 'announcements'>('kyc');
+  const [adminTab, setAdminTab] = useState<'kyc' | 'deposits' | 'withdrawals' | 'users' | 'settings' | 'announcements' | 'history'>('kyc');
+
+  // History Tab Filter States
+  const [historyUserFilter, setHistoryUserFilter] = useState<string>('all');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<string>('all');
+  const [historySearchTerm, setHistorySearchTerm] = useState<string>('');
 
   // Modal states for action details
   const [rejectUserModalId, setRejectUserModalId] = useState<string | null>(null);
@@ -358,6 +363,16 @@ export const AdminBackofficeView: React.FC = () => {
         >
           <Megaphone className="w-4 h-4" />
           Communiqués & Offres
+        </button>
+
+        <button
+          onClick={() => setAdminTab('history')}
+          className={`px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            adminTab === 'history' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-emerald-400" />
+          Historique des Comptes
         </button>
       </div>
 
@@ -1177,6 +1192,324 @@ export const AdminBackofficeView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TAB 7: ACCOUNT TRANSACTION & OPERATION HISTORY */}
+      {adminTab === 'history' && (() => {
+        const filteredHistory = transactions.filter(t => {
+          // User filter
+          if (historyUserFilter !== 'all' && t.userId !== historyUserFilter) {
+            return false;
+          }
+          // Type filter
+          if (historyTypeFilter !== 'all') {
+            if (historyTypeFilter === 'deposit' && t.type !== 'deposit' && t.type !== 'savings_deposit') return false;
+            if (historyTypeFilter === 'withdrawal' && t.type !== 'withdrawal' && t.type !== 'savings_withdraw') return false;
+            if (historyTypeFilter === 'exchange_click' && t.type !== 'exchange_click') return false;
+            if (historyTypeFilter === 'referral_bonus' && t.type !== 'referral_bonus') return false;
+            if (historyTypeFilter === 'transfer' && t.type !== 'transfer') return false;
+          }
+          // Search filter
+          if (historySearchTerm.trim()) {
+            const term = historySearchTerm.toLowerCase();
+            return (
+              t.id.toLowerCase().includes(term) ||
+              t.userName.toLowerCase().includes(term) ||
+              t.userId.toLowerCase().includes(term) ||
+              (t.paymentMethod && t.paymentMethod.toLowerCase().includes(term)) ||
+              (t.destinationAccount && t.destinationAccount.toLowerCase().includes(term)) ||
+              t.amount.toString().includes(term)
+            );
+          }
+          return true;
+        });
+
+        // Selected user details
+        const targetUser = historyUserFilter !== 'all' ? users.find(u => u.id === historyUserFilter) : null;
+
+        // Calculate specific stats for the filtered list or target user
+        const stats = (() => {
+          const txs = historyUserFilter === 'all' ? transactions : transactions.filter(t => t.userId === historyUserFilter);
+          const completed = txs.filter(t => t.status === 'completed' || t.status === 'approved');
+          
+          const depUSD = completed.filter(t => (t.type === 'deposit' || t.type === 'savings_deposit') && t.currency === 'USD').reduce((sum, t) => sum + t.amount, 0);
+          const depCDF = completed.filter(t => (t.type === 'deposit' || t.type === 'savings_deposit') && t.currency === 'CDF').reduce((sum, t) => sum + t.amount, 0);
+          
+          const witUSD = completed.filter(t => (t.type === 'withdrawal' || t.type === 'savings_withdraw') && t.currency === 'USD').reduce((sum, t) => sum + t.amount, 0);
+          const witCDF = completed.filter(t => (t.type === 'withdrawal' || t.type === 'savings_withdraw') && t.currency === 'CDF').reduce((sum, t) => sum + t.amount, 0);
+
+          const clicks = completed.filter(t => t.type === 'exchange_click');
+          const clicksUSD = clicks.filter(t => t.currency === 'USD').reduce((sum, t) => sum + t.amount, 0);
+          const clicksCDF = clicks.filter(t => t.currency === 'CDF').reduce((sum, t) => sum + t.amount, 0);
+
+          return {
+            depUSD,
+            depCDF,
+            witUSD,
+            witCDF,
+            clicksUSD,
+            clicksCDF,
+            totalClicks: clicks.length
+          };
+        })();
+
+        return (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  Historique Complet de Chaque Compte (Transactions & Activités)
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Consultez l'historique complet et détaillé des opérations de chaque utilisateur avec synchronisation en temps réel de la base de données.
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+              {/* User Selector Dropdown */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase text-slate-400">Filtrer par Compte / Utilisateur</label>
+                <select
+                  value={historyUserFilter}
+                  onChange={e => setHistoryUserFilter(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="all">-- Tous les comptes utilisateurs --</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.nom} {u.postnom} ({u.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Operation Type Filter */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase text-slate-400">Type d'opération</label>
+                <select
+                  value={historyTypeFilter}
+                  onChange={e => setHistoryTypeFilter(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="all">Toutes les opérations</option>
+                  <option value="deposit">Dépôts (Standard & Épargne)</option>
+                  <option value="withdrawal">Retraits (Standard & Épargne)</option>
+                  <option value="exchange_click">Conversions Bonus (Clicks)</option>
+                  <option value="referral_bonus">Bonus de Parrainage</option>
+                  <option value="transfer">Transferts entre comptes</option>
+                </select>
+              </div>
+
+              {/* Keyword Search */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold uppercase text-slate-400">Rechercher</label>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="ID, méthode de paiement, montant..."
+                    value={historySearchTerm}
+                    onChange={e => setHistorySearchTerm(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Overview if a single user is selected */}
+            {targetUser && (
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="sm:col-span-2 space-y-1 border-r border-slate-800/60 pr-4">
+                  <span className="text-[10px] uppercase font-extrabold text-amber-400">Détails de l'utilisateur</span>
+                  <h3 className="text-sm font-black text-slate-200">{targetUser.nom} {targetUser.postnom}</h3>
+                  <p className="text-xs text-slate-400">Téléphone: {targetUser.telephone} • Email: {targetUser.email}</p>
+                  <p className="text-xs text-slate-400">
+                    Rang: <span className="font-bold text-slate-300 capitalize">{targetUser.level}</span> • KYC: <span className="font-bold text-emerald-400 uppercase">{targetUser.kycStatus}</span>
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-extrabold text-slate-500">Solde Standard</span>
+                  <div className="text-sm font-black text-slate-200">{targetUser.balanceUSD.toFixed(2)} USD</div>
+                  <div className="text-xs text-slate-400">{targetUser.balanceCDF.toLocaleString('fr-FR')} CDF</div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-extrabold text-slate-500">Solde Épargne</span>
+                  <div className="text-sm font-black text-emerald-400">{(targetUser.savingsUSD || 0).toFixed(2)} USD</div>
+                  <div className="text-xs text-slate-400">{(targetUser.savingsCDF || 0).toLocaleString('fr-FR')} CDF</div>
+                </div>
+              </div>
+            )}
+
+            {/* Statistics Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-extrabold text-emerald-400 flex items-center gap-1">
+                  <Coins className="w-3.5 h-3.5" />
+                  Volume Total Déposé
+                </span>
+                <div className="text-lg font-black text-slate-200">{stats.depUSD.toFixed(2)} USD</div>
+                <div className="text-xs text-slate-400">{stats.depCDF.toLocaleString('fr-FR')} CDF</div>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-extrabold text-rose-400 flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  Volume Total Retiré
+                </span>
+                <div className="text-lg font-black text-slate-200">{stats.witUSD.toFixed(2)} USD</div>
+                <div className="text-xs text-slate-400">{stats.witCDF.toLocaleString('fr-FR')} CDF</div>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[10px] uppercase font-extrabold text-sky-400 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Conversions Bonus (Clicks)
+                </span>
+                <div className="text-lg font-black text-slate-200">
+                  {stats.totalClicks} clics bonus
+                </div>
+                <div className="text-xs text-slate-400 font-medium">
+                  Intérêts cumulés: {stats.clicksUSD.toFixed(2)} USD / {stats.clicksCDF.toLocaleString('fr-FR')} CDF
+                </div>
+              </div>
+            </div>
+
+            {/* History Table / List */}
+            <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300">
+                  {filteredHistory.length} opération{filteredHistory.length > 1 ? 's' : ''} trouvée{filteredHistory.length > 1 ? 's' : ''}
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
+                  En direct de la base de données
+                </span>
+              </div>
+
+              {filteredHistory.length === 0 ? (
+                <div className="py-16 text-center text-xs text-slate-500 space-y-1">
+                  <Clock className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                  <p className="font-bold">Aucune transaction trouvée</p>
+                  <p className="text-slate-600">Essayez de modifier vos critères de filtrage ou de recherche.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800/80 text-slate-400 font-extrabold text-[10.5px] bg-slate-900/10 uppercase tracking-wider">
+                        <th className="p-4">Date & ID</th>
+                        <th className="p-4">Utilisateur</th>
+                        <th className="p-4">Opération / Type</th>
+                        <th className="p-4 text-right">Montant</th>
+                        <th className="p-4">Méthode / Détails</th>
+                        <th className="p-4 text-center">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40 text-slate-300">
+                      {filteredHistory.map(t => {
+                        // Render Operation Label / Badge
+                        let typeBadge = '';
+                        let typeColor = '';
+                        switch (t.type) {
+                          case 'deposit':
+                            typeBadge = 'Dépôt standard';
+                            typeColor = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                            break;
+                          case 'savings_deposit':
+                            typeBadge = 'Dépôt Épargne';
+                            typeColor = 'bg-teal-500/10 text-teal-300 border border-teal-500/20';
+                            break;
+                          case 'withdrawal':
+                            typeBadge = 'Retrait standard';
+                            typeColor = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                            break;
+                          case 'savings_withdraw':
+                            typeBadge = 'Retrait Épargne';
+                            typeColor = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                            break;
+                          case 'exchange_click':
+                            typeBadge = 'Clic Conversion';
+                            typeColor = 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
+                            break;
+                          case 'referral_bonus':
+                            typeBadge = 'Bonus Parrain';
+                            typeColor = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+                            break;
+                          case 'transfer':
+                            typeBadge = 'Transfert';
+                            typeColor = 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20';
+                            break;
+                          default:
+                            typeBadge = t.type;
+                            typeColor = 'bg-slate-800 text-slate-400';
+                        }
+
+                        // Status color
+                        let statusColor = '';
+                        let statusLabel = '';
+                        switch (t.status) {
+                          case 'completed':
+                          case 'approved':
+                            statusLabel = 'Validé';
+                            statusColor = 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                            break;
+                          case 'pending':
+                            statusLabel = 'En attente';
+                            statusColor = 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
+                            break;
+                          case 'rejected':
+                            statusLabel = 'Rejeté';
+                            statusColor = 'bg-rose-500/15 text-rose-400 border border-rose-500/30';
+                            break;
+                          default:
+                            statusLabel = t.status;
+                            statusColor = 'bg-slate-800 text-slate-400';
+                        }
+
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-900/30 transition">
+                            <td className="p-4 font-mono">
+                              <span className="block text-slate-400 text-[10px]">{new Date(t.createdAt).toLocaleString('fr-FR')}</span>
+                              <span className="font-bold text-slate-200">{t.id}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold block text-slate-200">{t.userName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">ID: {t.userId}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${typeColor}`}>
+                                {typeBadge}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right font-mono font-bold">
+                              <span className={(t.type.includes('deposit') || t.type === 'referral_bonus' || t.type === 'exchange_click') ? 'text-emerald-400' : 'text-rose-400'}>
+                                {(t.type.includes('deposit') || t.type === 'referral_bonus' || t.type === 'exchange_click') ? '+' : '-'}
+                                {t.amount.toLocaleString('fr-FR')} {t.currency}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-slate-300 font-medium block max-w-xs truncate">{t.paymentMethod}</span>
+                              {t.destinationAccount && (
+                                <span className="text-[10px] text-emerald-400 block font-mono">Dest: {t.destinationAccount}</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${statusColor}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      )()}
 
       {/* Reject User Reason Modal */}
       {rejectUserModalId && (
